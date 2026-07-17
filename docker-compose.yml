@@ -1,0 +1,43 @@
+services:
+
+  medibook-db:
+    image: postgres:15-alpine
+    container_name: medibook-db
+    environment:
+      POSTGRES_DB: medibook
+      POSTGRES_USER: medibook
+      POSTGRES_PASSWORD: medibook
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medibook -d medibook"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  medibook-api:
+    build: ./app/backend
+    container_name: medibook-api
+    environment:
+      DB_HOST: medibook-db
+      DB_NAME: medibook
+      DB_USER: medibook
+      DB_PASSWORD: medibook
+    depends_on:
+      medibook-db:
+        condition: service_healthy
+    restart: always
+    ports:
+      - "5000:5000"
+
+  medibook-frontend:
+    build: ./app/frontend
+    container_name: medibook-frontend
+    depends_on:
+      - medibook-api
+    restart: always
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:
