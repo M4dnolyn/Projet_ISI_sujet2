@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: medibook-db
+  namespace: hospital
+spec:
+  clusterIP: None
+  selector:
+    app: medibook-db
+  ports:
+    - port: 5432
+      targetPort: 5432

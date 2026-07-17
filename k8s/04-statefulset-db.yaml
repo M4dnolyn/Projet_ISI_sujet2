@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: medibook-db
+  namespace: hospital
+spec:
+  serviceName: medibook-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medibook-db
+  template:
+    metadata:
+      labels:
+        app: medibook-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: medibook-config
+            - secretRef:
+                name: medibook-secret
+          env:
+            - name: POSTGRES_DB
+              value: medibook
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: medibook-secret
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medibook-secret
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - medibook
+                - -d
+                - medibook
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
