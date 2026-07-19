@@ -15,7 +15,7 @@ Application de gestion de rendez-vous médicaux déployée sur Kubernetes (Kind)
 ## Architecture
 
 ```
-Navigateur → Ingress (hopital.local) → Frontend Nginx → API Flask → PostgreSQL → PVC
+Navigateur → Ingress (medibook.local) → Frontend Nginx → API Flask → PostgreSQL → PVC
 ```
 
 ## Structure du projet
@@ -69,14 +69,14 @@ Application accessible sur http://localhost
 ### 1. Créer le cluster
 
 ```bash
-kind create cluster --config - <<EOF
+kind create cluster --name medibook --config - <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
   extraPortMappings:
   - containerPort: 80
-    hostPort: 80
+    hostPort: 8080
     protocol: TCP
 EOF
 ```
@@ -94,8 +94,15 @@ kubectl wait --namespace ingress-nginx --for=condition=ready pod \
 ```bash
 docker build -t medibook-api:latest ./app/backend
 docker build -t medibook-frontend:latest ./app/frontend
-kind load docker-image medibook-api:latest --name medibook
-kind load docker-image medibook-frontend:latest --name medibook
+
+# Alternative 1 : chargement direct
+kind load docker-image medibook-api:latest --name medibook || true
+
+# Alternative 2 (si la 1 échoue) : via archive .tar
+docker save medibook-api:latest -o /tmp/medibook-api.tar
+docker save medibook-frontend:latest -o /tmp/medibook-frontend.tar
+kind load image-archive /tmp/medibook-api.tar --name medibook
+kind load image-archive /tmp/medibook-frontend.tar --name medibook
 ```
 
 ### 4. Déployer l'application
@@ -105,11 +112,24 @@ kubectl apply -f k8s/
 kubectl wait --namespace hospital --for=condition=ready pod --all --timeout=180s
 ```
 
-### 5. Tester
+### 5. Configurer l'accès
 
 ```bash
+# Ajouter medibook.local dans /etc/hosts (une seule fois)
+echo "127.0.0.1 medibook.local" | sudo tee -a /etc/hosts
+```
+
+### 6. Tester
+
+```bash
+# Option A : via port-forward (simple, pas de DNS requis)
 kubectl port-forward -n hospital service/medibook-frontend 3000:80
 # Ouvrir http://localhost:3000
+
+# Option B : via Ingress (nécessite /etc/hosts + port 8080)
+kubectl port-forward -n ingress-nginx service/ingress-nginx-controller 8080:80
+curl -H "Host: medibook.local" http://localhost:8080/api/doctors
+# Ouvrir http://medibook.local:8080
 ```
 
 ## API REST

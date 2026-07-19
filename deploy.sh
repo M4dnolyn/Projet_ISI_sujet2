@@ -2,7 +2,7 @@
 set -euo pipefail
 
 NAMESPACE="hospital"
-CLUSTER="medibook-cluster"
+CLUSTER="medibook"
 
 echo "=== 1. Création du cluster Kind ==="
 kind delete cluster --name "$CLUSTER" 2>/dev/null || true
@@ -13,7 +13,7 @@ nodes:
   - role: control-plane
     extraPortMappings:
       - containerPort: 80
-        hostPort: 80
+        hostPort: 8080
         protocol: TCP
 EOF
 
@@ -28,9 +28,15 @@ kubectl wait --namespace ingress-nginx \
 echo "=== 3. Build des images Docker ==="
 docker compose build
 
-echo "=== 4. Chargement des images dans Kind ==="
-kind load docker-image medibook-api:latest --name "$CLUSTER"
-kind load docker-image medibook-frontend:latest --name "$CLUSTER"
+echo "=== 4. Tag des images et chargement dans Kind ==="
+# Docker Compose préfixe les images avec le nom du dossier projet
+docker tag projet_isi_sujet2-medibook-api:latest medibook-api:latest
+docker tag projet_isi_sujet2-medibook-frontend:latest medibook-frontend:latest
+# Chargement via archive .tar (contourne le bug kind load docker-image)
+docker save medibook-api:latest > /tmp/medibook-api.tar
+docker save medibook-frontend:latest > /tmp/medibook-frontend.tar
+kind load image-archive /tmp/medibook-api.tar --name "$CLUSTER"
+kind load image-archive /tmp/medibook-frontend.tar --name "$CLUSTER"
 
 echo "=== 5. Déploiement des manifests ==="
 kubectl apply -f k8s/
@@ -46,8 +52,8 @@ kubectl wait --namespace "$NAMESPACE" \
   --timeout=120s
 
 echo "=== 7. Ajout de l'entrée /etc/hosts ==="
-if ! grep -q "hopital.local" /etc/hosts; then
-  echo "127.0.0.1 hopital.local" | sudo tee -a /etc/hosts
+if ! grep -q "medibook.local" /etc/hosts; then
+  echo "127.0.0.1 medibook.local" | sudo tee -a /etc/hosts
   echo "✓ Entrée ajoutée à /etc/hosts"
 else
   echo "→ Entrée déjà présente dans /etc/hosts"
@@ -55,7 +61,11 @@ fi
 
 echo ""
 echo "=== Déploiement terminé ! ==="
-echo "Accède à http://hopital.local dans ton navigateur."
+echo "Accède à http://medibook.local:8080 dans ton navigateur."
+echo ""
+echo "Pour tester l'API directement :"
+echo "  kubectl port-forward -n hospital service/medibook-api 5001:5000"
+echo "  curl http://localhost:5001/api/doctors"
 echo ""
 echo "Commandes utiles :"
 echo "  kubectl get all -n hospital"
