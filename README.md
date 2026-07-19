@@ -156,10 +156,6 @@ doctors:    id | name | specialty | avatar_url
 appointments: id | patient_name | doctor_id (FK) | date | time_slot | reason | status
 ```
 
-## Vidéo de démonstration
-
-[Lien vers la vidéo]
-
 ---
 
 Projet réalisé dans le cadre de l'UE ISI — 2026
