@@ -19,11 +19,12 @@ EOF
 
 echo "=== 2. Installation de l'Ingress Controller ==="
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+
 sleep 5
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=120s
+  --timeout=240s
 
 echo "=== 3. Build des images Docker ==="
 docker compose build
